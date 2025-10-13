@@ -71,3 +71,23 @@ h2 {
 .assignment p {
   margin-top: 0.5em;
 }
+
+.image-row {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+.image-row img {
+  max-width: 48%;
+  height: auto;
+  border-radius: 8px;
+}
+.code-section {
+  background-color: #2d2d2d;
+  color: #f8f8f2;
+  padding: 15px;
+  border-radius: 8px;
+  font-family: "Courier New", monospace;
+  overflow-x: auto;
+  white-space: pre-wrap;
+}
