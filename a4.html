@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, maximum-scale=1.0" />
+
+    <title>Assignment 4: Libraries!</title>
+
+    <link href="style.css" rel="stylesheet" type="text/css" />
+
+  </head>
+  <body>
+    <h1>Assignment 4: Libraries!</h1>
+    <br>
+    <div class="section">
+      <h2>Overview</h2>
+      <p>
+        This circuit utilizes an HC-SR04 Ultrasonic sensor for distance and a DHT11 module for temperature.
+        The data collected is done through their respective libraries (HCSR04.h and DHT.h), which is then
+        processed and transmitted to a 16x2 Liquid Crystal Display (LCD) via its own library (LiquidCrystal.h),
+        acting as the primary output device. The LCD displays both the measured distance in inches and the current
+        ambient temperature in Celsius.
+      </p>
+    </div>
+    <br>
+    <div class="section">
+      <h2>Schematics and Breadboard Circuitry</h2>
+      <div class="image-row">
+        <img src="images/A4-Schematic.png" width="600" height="600" />
+        <img src="images/A4-Circuit-Schematic.png" width="600" height="600" />
+      </div>
+      <p>
+        The shown schematic and circuitry displays an LCD, an ultrasonic sensor and a temperature sensor
+        (Tinkercad does not have a DHT11 module so this basic temperature sensor is in its place).
+      </p>
+      <p>
+        Noteworthy Information: Tinkercad was used to make these schematics and circuitry, due to
+        the amount of wires used for the actual circuitry which was difficult to display. 3 resistors were used, 10kΩ and 2kΩ
+        respectively in a series for the main LCD screen, and a 220Ω resistor for the LED backlight.
+        With the circuitry found online and in class to understand how to wire the components to the arduino and breadboard.
+      </p>
+      <br>
+      <h3>
+        Calculations:
+      </h3>
+      <p>
+        Main LCD Screen has these white blocks that will dim or brighten based on the amount of voltage it has, which is why
+        I used a 10kΩ (R1) and 2kΩ (R2) in a series (respectively) to help achieve the desired visibility I wanted using this equation Vout = Vin * R2 / (R1 +R2).
+      </p>
+      <p>
+        Vout = 5V * 2kΩ / (10kΩ + 2kΩ) = 0.83V, due to the low voltage this darkens/dims the white blocks so the text we want to see be displayed on the LCD
+        is sharper and more visible.
+      </p>
+      <p>
+        For the 220Ω we can uses Ohm's law (5V - 3.3V) / 220Ω = 7.73mA, this is assuming that the LED is a white LED which is a 3.3V
+        drop. With that accounted, this keeps the LED below 20mA making it safe for continuous usage.
+      </p>
+    </div>
+    <br>
+    <div class="section">
+      <h2>Arduino Code Snippet (.ino)</h2>
+      <div class="code-section">
+        <pre>
+            // Code uses examples from in class demonstrations, slides and external sources
+            // Schematic and code used from these external sources and or library examples:
+            // https://docs.arduino.cc/learn/electronics/lcd-displays/
+            // https://arduinogetstarted.com/tutorials/arduino-dht11
+            // https://arduinogetstarted.com/tutorials/arduino-ultrasonic-sensor
+
+            #include <DHT.h> // Includes the library for the DHT module which is a temperature/humidity sensor
+            #include <HCSR04.h> // Includes the library for the HC-SR04 ultrasonic sensor
+            #include <LiquidCrystal.h> // Includes the librabry for the Liquid Crystal Display (LCD)
+
+            // Letters are associated to their respective interface pin for the LCD
+            // with an associate arduino pin that it is connected to
+            // Other pins are connected based on the schematic shown, these are the main ones being used
+            const int rs = 12; // Pin connected to the LCD Register Select (RS)
+            const int en = 11; // Pin connected to the LCD Enable (EN or E in this case)
+            const int d4 = 5; // Pin connected to Data pin D4
+            const int d5 = 4; // Pin connected to Data pin D5
+            const int d6 = 3; // Pin connected to Data pin D6
+            const int d7 = 2; // Pin connected to Data pin D7
+
+            LiquidCrystal lcd(rs, en, d4, d5, d6, d7); // Initialize the LCD library and defines the pins used
+
+            byte triggerPin = 9; // Pin connected to the HC-SR04 Trigger pin
+            byte echoPin = 8; // Pin connected to the HC-SR04 Echo pin
+
+            #define DHTPIN 7 // Defines the pin that is connected to the DHT sensor's output 
+            #define DHTTYPE DHT11 // Defines the type of DHT module being used, in this case its the DHT11
+
+            DHT dht(DHTPIN, DHTTYPE); // Initializes the DHT library with the pin and sensor module type
+
+            // Section integrates parts from the arduino examples for the LCD, Ultrasonic Sensor and DHT
+            void setup() {
+            // Sets up the LCD's number of columns and rows
+            lcd.begin(16, 2);
+            // Monitor input and output of the code for visualization and debugging
+            Serial.begin(9600);
+            // Starts the usage of the Ultrasonic Sensor
+            HCSR04.begin(triggerPin, echoPin);
+            // Starts the usage of the DHT temperature and humidity module
+            dht.begin();
+
+            // Establishes the top row of the LCD by defining What values will be presented
+            lcd.setCursor(0, 0); // Moves cursor to the beginning of the first line
+            lcd.print("Dist:"); // Prints distance for the reading below it
+            lcd.setCursor(8, 0); // Moves cursor to the middle of the  first line
+            lcd.print("Temp:"); // Prints temperature for the reading below it
+            }
+
+            // This section also includes code from the examples provided by the LCD, Ultrasonic sensor and DHT library and
+            // external sources
+            void loop() {
+            // Turn on the display
+            lcd.display();
+            
+            // Measures the distance in inches using the HCSR04 library and returns an array of which we only take the first value
+            double * distances = HCSR04.measureDistanceIn(); // an array of values returned from the HCSR04 library
+            double distance = distances[0]; // Assigning only the first array value to a new variable for easier use
+            
+            float temp = dht.readTemperature(); // Celcius is default returned value, true will make it fahrenheit when the DHT sensor reads the temperature
+
+            // Checks to see if the temperature reading failed based on wiring or other potential error
+            if (isnan(temp)) {
+                // Prints an error message to the serial monitor 
+                Serial.println(F("Failed to read from DHT sensor"));
+                return; // Exits early to try the reading again
+            }
+            
+            // Clears the whole second line of the LCD to print new values 
+            lcd.setCursor(0, 1);
+            lcd.print("                "); // 16 spaces to clear the line
+
+            // Sets the cursor back to the beginning of the second line
+            lcd.setCursor(0, 1);
+            // Checks to see if if the distance is negative to adjust it back to 0
+            if (distance < 0) {
+                lcd.print("0"); // Replaces current distance value with 0
+            } else {
+                lcd.print(distance); // Prints the current distance value
+            }
+            lcd.print("in"); // Prints the unit of measurement associated, in this case inches
+
+            // Sets the cursor to the middle of the second line
+            lcd.setCursor(8, 1);
+            lcd.print(temp); // Prints the current temperature value
+            lcd.print("C"); // Prints the unit of temperature, in this case Celcius
+
+            // Checks to see if both distance and temperature are being collected correctly in the Serial monitor
+            // in their respective measurements
+            Serial.print(distance); // Current distance value
+            Serial.println("in");
+            Serial.println("---"); // Spacer to differentiate between values
+            Serial.print(temp); // Current temperature value
+            Serial.println("C");
+            Serial.println("---");
+
+            delay(2000); // Delays the program by 2 seconds to ensure better readings
+            }
+        </pre>
+      </div>
+    </div>
+    <br>
+    <div class="section">
+      <h2>Circuit's Operation</h2>
+      <div class="image-row">
+        <img src="images/A4-Serial-Monitor.gif" width="400" height="400" />
+        <img src="images/A4-Circuit-Working.gif" width="400" height="400" />
+      </div>
+      <p>
+        Gif on the left shows the serial monitor and the information it is reading from the ultrasonic sensor and
+        the temperature module, which is then transmitted and displayed on the LCD screen on the right gif.
+      </p>
+    </div>
+    <br>
+    <div class="section">
+      <h2>Questions and Answers</h2>
+      <br>
+      <h3>
+        1: Say you are using a servo motor you attach to pin 9. In your loop() you have the following code:
+        <pre>
+            void loop() {
+                for (pos = 0; pos <= 180; pos += 1) {
+                myservo.write(pos); 
+                delay(100); 
+                }
+            }
+        </pre>
+        Draw a graph with the x-axis as time and the y-axis as voltage at pin 9 with respect to ground.
+      </h3>
+      <img src="images/A4-Voltage-Graph.jpg" width="400" height="400" />
+      <p>
+        Based on information found online and from class, a typical servo has 50hz frame rate and when converted to milliseconds is every 20ms.
+        This is the timeframe in which the pulse is high for a set amount of milliseconds, starting from 1.0ms and gradually increasing to 2.0ms
+        as it progresses from 0 degrees to 180 degrees.
+      </p>
+      <br>
+      <h3>
+        2: Your input device is slightly broken, leading it to give us an erroneous reading 1% of the time. How can we address this? Answer in (pseudo)code.
+      </h3>
+      <p>
+        From what can be determined as a possible solution to handle the erroneous readings that occur 1% of the time. One way is through selecting the median
+        as it is less affected by extreme values compared to the mean. So an approach here can be as follows.
+        <pre>
+            // Function that is is inputing sensor readings
+                // Set a value for the length of an array
+                Set N = ODD Value (higher than 5 for better readings)
+                Declare readings[N] as an array to hold an nth amount of readings
+
+                // Function to populate an N amount of readings based on what the sensor reads
+                For i from 0 to N-1
+                    // Input reading value into array
+                    readings[i] = sensorReadings
+                    Delay by (20ms) to allow for better readings
+                // End Function
+
+                // Sort readings in ascending order
+                Sort readings by rearranging elements in array (ascending order)
+
+                // Return the median (middle) value from nth amount of readings collected by dividing by 2
+                return reading[N/2]
+            // End function
+        </pre>
+      </p>
+      <br>
+      <h3>
+        3: Your input device is slightly noisy, leading the measurement to randomly deviate from the true measurement up or down by 10%. How can we address this? Answer in (pseudo)code.
+      </h3>
+      <p>
+        Similar to the previous problem, we want to collect an N amount of readings to help address the noise problem our data measurement has.
+        In this case, instead of the median we actually use the mean to smooth out the ±10% error, so we can get a closer
+        and consistent value in our measurements.
+        <pre>
+            // Function that is inputing sensor readings values
+                Set an N value for number of readings (10 or more, preferrably even for better data averaging)
+                Set total to 0 so we can accumulate data onto
+
+                // Function to accumulate readings data
+                For i from 0 to N-1
+                    // total = total + readingValue
+                    Delay by (10ms) to sample quick and have some variety
+                // End function
+
+                // Return the average by dividing by the total N count
+                return total / n
+            // End function
+        </pre>
+      </p>
+      <br>
+      <h3>
+        4: Did you use AI tools in completing this assignment? If yes, please provide details on how/when, as well as a brief reflection.
+        If you used an LLM, please 'share' your conversation and include it as part of your submission, or cite the prompt(s) you used and the output.
+        If no, you can either leave this question blank, or provide other information if you'd like.
+      </h3>
+      <p>
+        I have used AI tools while completing this assignment, mainly through troubleshooting code that I am confused on, grammar and clarity,
+        or questions that I have no idea how to go about answering properly. One of the more recent conversations I had with an LLM, specifically Gemini AI.
+        Was when I had asked it about how I would go about understanding the first question, which frankly did not give much information at first glance, and was confused
+        on where to exactly start for that question. However, it gave me a response without actually telling me where it got the information,
+        so I asked it where it got the information. From there I was able to understand how it got the answer it gave me, and reading the source material helped me
+        understand it more. I do this often, since AI is still capable of giving you false answers or falsifying information for the sake of pushing an answer to the query made.
+        Which really only strengthens my stance that AI is more of a tool to expand my knowledge, rather than have it do my work for me. Because,
+        in the end how will I apply the knowledge and skills I learned to bigger and more complicated projects if AI did all the work and learning for me, I would basically
+        be confused and not know what to do since AI simply did everything.
+      </p>
+    </div>
+  </body>
+</html>
