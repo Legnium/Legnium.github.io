@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://cdn.jsdelivr.net/npm/p5@1.9.0/lib/p5.js"></script>
+    <script src="https://unpkg.com/@gohai/p5.webserial@^1/libraries/p5.webserial.js"></script>
+
+    <title>Assignment 6: Talking To The Web!</title>
+
+    <link href="style.css" rel="stylesheet" type="text/css" />
+
+  </head>
+  <body>
+    <h1>Assignment 6: Talking To The Web!</h1>
+    <br>
+    <div class="section">
+      <h2>Overview</h2>
+      <p>
+        This circuit uses a joystick module for X and Y input. The data is read by the Arduino, mapped for servo control, and then
+        sent via Web serial to the p5.js webpage for real time visualization of the servo angles. The physical servo motors also read
+        the data provided by the arduino and execute the movement, while also being powered by a dedicated AC/DC power supply module
+        for consistent voltage and prevent the arduino from becoming unstable due to potentially not having enough voltage to power everything.      </p>
+    </div>
+    <br>
+    <div class="section">
+      <h2>Schematics and Breadboard Circuitry</h2>
+      <div class="image-row">
+        <img src="images/A6-Circuitry.jpg" width="600" height="600" />
+        <img src="images/A6-Schematics.png" width="600" height="600" />
+      </div>
+      <p>
+        The shown circuit (left) and schematic (right) displays a joystick connected to the arduino, alongside two servo motors
+        that are using an external power source (power supply module 9V to 5V).
+      </p>
+    </div>
+    <div class="section">
+      <h2>Arduino Code Snippet (.ino)</h2>
+      <div class="code-section">
+        <pre>
+          // Code uses examples from in class demonstrations, slides and external sources
+          // Schematic and code used from these external sources and or library examples:
+          // https://arduinogetstarted.com/tutorials/arduino-joystick
+
+          #include <Servo.h> // Inlcudes the library for the servo motors to function
+
+          Servo servo1; // Creates a servo object to be used for x control
+          Servo servo2; // Creates a servo object to be used for y control
+
+          #define VRX_PIN  A1 // Arduino pin connected to VRX pin
+          #define VRY_PIN  A0 // Arduino pin connected to VRY pin
+
+          int xValue = 0; // To store value of the X axis
+          int yValue = 0; // To store value of the Y axis
+          int xMapped; // Stores the remapped x value to 0-180 from 0-1023
+          int yMapped; // Stores the remapped y value to 0-180 from 0-1023
+
+          // Setup integrates parts from the servo tutorial
+          void setup() {
+            // put your setup code here, to run once:
+            Serial.begin(9600); // Monitor input and output of the code for visualization and debugging
+            servo1.attach(9); // Establishes digital pin 9 for the first servo motor
+            servo2.attach(10); // Establish digital pin 10 for the second servo motor
+          }
+
+          // This section includes code from the servo motor tutorial and modified to interpret
+          // The values are remapped to fit the range of the servo motor better
+          void loop() {
+            // read analog X and Y analog values
+            xValue = analogRead(VRX_PIN);
+            yValue = analogRead(VRY_PIN);
+            xMapped = map(xValue, 0, 1023, 0, 180); // Remaps analog values of x to degrees of the servo motor
+            yMapped = map(yValue, 0, 1023, 0, 180); // Remaps analog values of x to degrees of the servo motor
+
+            // Gives the x and y mapped values to be used by the servo motor
+            servo1.write(xMapped);
+            servo2.write(yMapped);
+
+            // Sends the current x and y mapped values for visualization on monitor and to webpage to also visualize
+            Serial.print(xMapped);
+            Serial.print(", ");
+            Serial.println(yMapped);
+
+            // Delays by 100 in order for the web to actually handle the information, otherwise, there is a major delay on input
+            // and just to slow down the information received
+            delay(100);
+          }
+        </pre>
+      </div>
+    </div>
+    <div class="section">
+      <h2>JavaScript Code Snippet (.js)</h2>
+      <div class="code-section">
+        <pre>
+          // Code uses examples from in class demonstrations, slides and external sources
+          const BAUD_RATE = 9600; // The baud rate based on the Arduino sketch
+
+          // Create fixed canvas dimensions for better integration on the html document
+          const CANVAS_WIDTH = 700;
+          const CANVAS_HEIGHT = 400;
+          // Creates a distance between the two servo visualizers
+          const X_Y_SEPARATION = 300;
+
+          let port, connectBtn; // Declare global variables
+
+          function setup() {
+            setupSerial(); // Run our serial setup function (below)
+
+            // Create a canvas that is the size of our browser window.
+            // windowWidth and windowHeight are p5 variables
+            let canvas = createCanvas(CANVAS_WIDTH, CANVAS_HEIGHT);
+            canvas.parent('sketch-holder'); // Attach the canvas element to the html structure
+
+            // p5 text settings. BOLD and CENTER are constants provided by p5.
+            // See the "Typography" section in the p5 reference: https://p5js.org/reference/
+            textFont("system-ui", 24);
+            textStyle(BOLD);
+            textAlign(CENTER, CENTER);
+          }
+
+          function draw() {
+            const portIsOpen = checkPort(); // Check whether the port is open (see checkPort function below)
+            if (!portIsOpen) return; // If the port is not open, exit the draw loop
+
+            const centerX = CANVAS_WIDTH / 2; // Centers coordinate of the sketch for x
+            const centerY = CANVAS_HEIGHT / 2; // Centers coordinate of the sketch for y
+
+            let str = port.readUntil("\n"); // Read from the port until the newline
+            if (str.length == 0) return; // If we didn't read anything, return.
+            let data = str.trim().split(','); // Reads Serial data input from arduino and splits data into arrays by comma
+
+            let xMapped = Number(data[0]); // Establishes the first number in the array as the x mapped value
+            let yMapped = Number(data[1]); // Establishes the first number in the array as the y mapped value
+            
+            // Step 1: Make GUI that rotates with mouse input
+            angleMode(DEGREES);
+
+            // Sets background back to black for refreshing the visuals
+            background(0);
+
+            // Sets color to white to display the x and y mapped values for better visualization
+            fill(255);
+            text(`X: ${xMapped}° | Y: ${yMapped}°`, centerX, 30);
+
+            // Following Push and Pop are used to isolate transformations for the visuals
+            push();
+
+            translate(centerX - X_Y_SEPARATION /2, centerY); // Translates from center origin to the left
+
+            let rotX = map(xMapped, 0, 180, 90, -90); // Remaps arduino x values to better respect the visuals on the sketch
+            rotate(rotX); // Applies the rotation
+
+            triangle(-100, 0, 100, 0, 0, -150); // Draws the white triangle indicator
+
+            // Sets the color to cyan for the circle and draws a circle
+            fill('cyan'); 
+            circle(0, 0, 200);
+            
+            // Ends first isolated visual for x axis
+            pop();
+
+            // Second isolated visual for y axis begins
+            push();
+
+            translate(centerX + X_Y_SEPARATION /2, centerY); // Translates from center origin to the right
+            let rotY = map(yMapped, 0, 180, 90, -90) // Remaps arduino y values to better respect the visuals on the sketch
+            rotate(rotY); // Applies the rotation
+
+            triangle(-100, 0, 100, 0, 0, -150); // Draws the white triangle indicator
+
+            // Sets color to lime for the circle and draws
+            fill('lime');
+            circle(0, 0, 200);
+
+            // Ends second isolated visual for y axis
+            pop();
+          }
+
+
+          // Three helper functions for managing the serial connection.
+
+          function setupSerial() {
+            port = createSerial();
+
+            // Check to see if there are any ports we have used previously
+            let usedPorts = usedSerialPorts();
+            if (usedPorts.length > 0) {
+              // If there are ports we've used, open the first one
+              port.open(usedPorts[0], BAUD_RATE);
+            }
+
+            // create a connect button for the website
+            connectBtn = createButton("Connect to Arduino");
+            connectBtn.parent('button-controls'); // Attach the button element to the html structure
+            connectBtn.mouseClicked(onConnectButtonClicked); // When the button is clicked, run the onConnectButtonClicked function
+          }
+
+          function checkPort() {
+            if (!port.opened()) {
+              // If the port is not open, change button text
+              connectBtn.html("Connect to Arduino");
+              // Set background to purple
+              background("purple");
+              return false;
+            } else {
+              // Otherwise we are connected
+              connectBtn.html("Disconnect");
+              return true;
+            }
+          }
+
+          function onConnectButtonClicked() {
+            // When the connect button is clicked
+            if (!port.opened()) {
+              // If the port is not opened, we open it
+              port.open(BAUD_RATE);
+            } else {
+              // Otherwise, we close it!
+              port.close();
+            }
+          }
+        </pre>
+      </div>
+    </div>
+    <div class="section">
+      <h2>Sketch Visualizer (X and Y rotation)</h2>
+      <div id="sketch-wrapper">
+        <div id="button-controls">
+          <div id="sketch-holder">
+            <script src="a6.js"></script>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="section">
+      <h2>Circuit's Operation and Web Visualization</h2>
+      <div class="image-row">
+        <img src="images/Visual-X-Y-Rotation.gif" width="600" height="600" />
+        <img src="images/Independent-Servo-Joystick.gif" width="600" height="600" />
+      </div>
+      <p>
+        Gif on the left shows the web visualization based on the input of the x and y received from the joystick. Gif on the
+        right shows the servo motors moving based on the joystick's input.
+      </p>
+    </div>
+    <div class="section">
+      <h2>Other Resources</h2>
+      <p>
+        Ai was used throughout the process of this assignment, particularly to troubleshoot with existing issues, coding and css.
+        Ai was used mainly as a tool to further enhance my learning, as stated before in previous assignments.
+      </p>
+    </div>
+  </body>
+</html>
