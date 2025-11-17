@@ -53,7 +53,7 @@ function draw() {
 
   translate(centerX - X_Y_SEPARATION /2, centerY); // Translates from center origin to the left
 
-  let rotX = map(xMapped, 0, 180, 90, -90); // Remaps arduino x values to better respect the visuals on the sketch
+  let rotX = map(xMapped, 0, 180, 90, -90); // Remaps Arduino x values to better respect the visuals on the sketch
   rotate(rotX); // Applies the rotation
 
   triangle(-100, 0, 100, 0, 0, -150); // Draws the white triangle indicator
@@ -69,7 +69,7 @@ function draw() {
   push();
 
   translate(centerX + X_Y_SEPARATION /2, centerY); // Translates from center origin to the right
-  let rotY = map(yMapped, 0, 180, 90, -90) // Remaps arduino y values to better respect the visuals on the sketch
+  let rotY = map(yMapped, 0, 180, 90, -90) // Remaps Arduino y values to better respect the visuals on the sketch
   rotate(rotY); // Applies the rotation
 
   triangle(-100, 0, 100, 0, 0, -150); // Draws the white triangle indicator
@@ -80,6 +80,13 @@ function draw() {
 
   // Ends second isolated visual for y axis
   pop();
+
+  // Get current angles for x and y by readjusting the values back to 0-180
+  let angleToWriteX = int(rotX + 90);
+  let angleToWriteY = int(rotY + 90);
+
+  // Returns the data back to the Arduino to use to command the physical servo motors position
+  port.write(`${angleToWriteX},${angleToWriteY}\n`);
 }
 
 

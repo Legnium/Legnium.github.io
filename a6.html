@@ -55,6 +55,10 @@
           int xMapped; // Stores the remapped x value to 0-180 from 0-1023
           int yMapped; // Stores the remapped y value to 0-180 from 0-1023
 
+          int xWebValue = 90; // Holds Current x servo position to be commanded by web
+          int yWebValue = 90; // Holds Current y servo position to be commanded by web
+
+
           // Setup integrates parts from the servo tutorial
           void setup() {
             // put your setup code here, to run once:
@@ -72,14 +76,33 @@
             xMapped = map(xValue, 0, 1023, 0, 180); // Remaps analog values of x to degrees of the servo motor
             yMapped = map(yValue, 0, 1023, 0, 180); // Remaps analog values of x to degrees of the servo motor
 
-            // Gives the x and y mapped values to be used by the servo motor
-            servo1.write(xMapped);
-            servo2.write(yMapped);
-
             // Sends the current x and y mapped values for visualization on monitor and to webpage to also visualize
             Serial.print(xMapped);
             Serial.print(", ");
             Serial.println(yMapped);
+
+            // Check to see if data is available
+            if (Serial.available() > 0) {
+              // Read the first integer for x value sent from the web
+              int tempX = Serial.parseInt();
+
+              // Checks to see if there is further data, mainly just x and y data
+              if (Serial.read() == ',') {
+                // Reads the second integer for y value sent from the web
+                int tempY = Serial.parseInt();
+                // Validate data is within servo range before updating the global variables
+                if (tempX >= 0 && tempX <= 180 && tempY >= 0 && tempY <= 180) {
+                    // Update the global variables with valid data
+                    xWebValue = tempX; 
+                    yWebValue = tempY;
+                    // Clear any remaining characters in the input buffer
+                    while (Serial.available()) { Serial.read(); }
+                }
+              }
+            }
+            // Uses the x and y web values received from the website to turn the servo motors from 0-180 degrees
+            servo1.write(xWebValue);
+            servo2.write(yWebValue);
 
             // Delays by 100 in order for the web to actually handle the information, otherwise, there is a major delay on input
             // and just to slow down the information received
@@ -174,6 +197,13 @@
 
             // Ends second isolated visual for y axis
             pop();
+
+            // Get current angles for x and y by readjusting the values back to 0-180
+            let angleToWriteX = int(rotX + 90);
+            let angleToWriteY = int(rotY + 90);
+
+            // Returns the data back to the Arduino to use to command the physical servo motors position
+            port.write(`${angleToWriteX},${angleToWriteY}\n`);
           }
 
 
