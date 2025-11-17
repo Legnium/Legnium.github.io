@@ -18,9 +18,11 @@
       <h2>Overview</h2>
       <p>
         This circuit uses a joystick module for X and Y input. The data is read by the Arduino, mapped for servo control, and then
-        sent via Web serial to the p5.js webpage for real time visualization of the servo angles. The physical servo motors also read
-        the data provided by the arduino and execute the movement, while also being powered by a dedicated AC/DC power supply module
-        for consistent voltage and prevent the arduino from becoming unstable due to potentially not having enough voltage to power everything.      </p>
+        sent via Web serial to the p5.js webpage for real time visualization of the servo angles. From the website, the physical 
+        servo motors reads the data that is transferred back to the arduino to then replicate the motion seen visually from the website. The servo
+        motors are also being powered by a dedicated AC/DC power supply module for consistent voltage and prevent the arduino from becoming 
+        unstable due to potentially not having enough voltage to power everything.
+      </p>
     </div>
     <br>
     <div class="section">
@@ -270,7 +272,7 @@
       </div>
       <p>
         Gif on the left shows the web visualization based on the input of the x and y received from the joystick. Gif on the
-        right shows the servo motors moving based on the joystick's input.
+        right shows the servo motors moving based on the data received from the website based on the joystick's input.
       </p>
     </div>
     <div class="section">
